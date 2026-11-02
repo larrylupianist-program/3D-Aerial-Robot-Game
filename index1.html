@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>WebGL Game</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 16px;
+            gap: 12px;
+            font-family: 'Microsoft JhengHei', sans-serif;
+        }
+
+        /* ── 左欄 ── */
+        #panel-left {
+            width: 300px;
+            min-height: 820px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 16px;
+            color: #eee;
+            flex-shrink: 0;
+        }
+        #panel-left h2 {
+            font-size: 19px;
+            color: #7ecfff;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+        .key-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 19px;
+        }
+        .key {
+            background: #333;
+            border: 1px solid #666;
+            border-radius: 5px;
+            padding: 2px 7px;
+            font-size: 12px;
+            color: #fff;
+            white-space: nowrap;
+        }
+
+        /* ── 中欄 ── */
+        #panel-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        #game-wrapper {
+            position: relative;
+            width: 800px;
+            height: 800px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        #webgl {
+            display: block;
+            width: 800px;
+            height: 800px;
+        }
+
+        /* HUD 頂部列 */
+        #hud {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.45);
+            pointer-events: none;
+        }
+        #hud-left {
+            display: flex;
+            gap: 10px;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        .hud-badge {
+            background: rgba(255,255,255,0.15);
+            border-radius: 6px;
+            padding: 3px 10px;
+        }
+        .hud-badge span { color: #ffd700; }
+
+        /* 暫停按鈕 */
+        #btn-pause {
+            pointer-events: auto;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        #btn-pause:hover { background: rgba(255,255,255,0.3); }
+
+
+
+        /* PAUSED 覆蓋層 */
+        #pause-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.55);
+            display: none;           /* 預設隱藏 */
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 64px;
+            font-weight: bold;
+            letter-spacing: 8px;
+            pointer-events: none;
+        }
+
+        #gameOverOverlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        #gameOverBox {
+            text-align: center;
+            color: white;
+        }
+        #gameOverTitle {
+            font-size: 64px;
+            font-weight: bold;
+            color: #ff4444;
+            letter-spacing: 6px;
+            margin-bottom: 16px;
+        }
+        #gameOverScore {
+            font-size: 24px;
+            color: #ffd700;
+            margin-bottom: 12px;
+        }
+        #gameOverHint {
+            font-size: 16px;
+            color: #aaa;
+            animation: blink 1.2s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
+        }
+
+        /* ── 右欄 ── */
+        #panel-right {
+            width: 500px;
+            min-height: 820px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 16px;
+            color: #eee;
+            flex-shrink: 0;
+        }
+        #panel-right h2 {
+            font-size: 19px;
+            color: #ffb347;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+
+        .coming-soon {
+            color: #888;
+            font-size: 13px;
+            text-align: center;
+            margin-top: 40px;
+        }
+
+
+    </style>
+</head>
+
+<body onload="main()">
+
+    <!-- 左欄 -->
+    <div id="panel-left">
+        <h2>⌨ 操作說明</h2>
+        <div class="key-row"><span class="key">W</span> 向前移動</div>
+        <div class="key-row"><span class="key">S</span> 向後移動</div>
+        <div class="key-row"><span class="key">A</span> 向左移動</div>
+        <div class="key-row"><span class="key">D</span> 向右移動</div>
+        <div class="key-row"><span class="key">Q</span> 切換視角</div>
+        <div class="key-row"><span class="key">E</span> 吸收地板</div>
+        <div class="key-row"><span class="key">R</span> 下一回合</div>
+        <div class="key-row"><span class="key">shift</span> 開啟護盾</div>
+        <div class="key-row"><span class="key">空白</span> 暫停/重跑</div>
+        <div class="key-row"><span class="key">滾輪</span> 縮放</div>
+        <div class="key-row"><span class="key">拖曳</span> 轉向</div>
+    </div>
+
+    <!-- 中欄 -->
+    <div id="panel-center">
+        <div id="game-wrapper">
+
+            <canvas id="webgl" width="800" height="800">
+                請使用支援 Canvas 的瀏覽器
+            </canvas>
+
+            <!-- HUD 頂部列 -->
+            <div id="hud">
+                <div id="hud-left">
+                    <div class="hud-badge">分數 <span id="scoreDisplay">0</span></div>
+                    <div class="hud-badge">LV <span id="levelDisplay">1</span></div>
+                    <div class="hud-badge">Round <span id="roundDisplay">0</span></div>
+                    <div class="hud-badge">⏱ <span id="timeDisplay">3.00</span>s</div>
+                </div>
+                <button id="btn-pause" title="暫停/繼續">⏸</button>
+            </div>
+
+            <!-- 吸收狀態（左下角） -->
+            <div id="absorb-ui">
+                吸收：<span id="absorbDisplay">0</span> / 4
+            </div>
+
+            <!-- PAUSED 覆蓋層 -->
+            <div id="pause-overlay">PAUSED</div>
+
+            <!-- Game Over 覆蓋層 -->
+            <div id="gameOverOverlay">
+                <div id="gameOverBox">
+                    <!-- 第一畫面：Game Over -->
+                    <div id="gameOverScreen">
+                        <div id="gameOverTitle">GAME OVER</div>
+                        <div id="gameOverScore">最終分數：<span id="finalScore">0</span></div>
+                        <div id="gameOverHint">按 Z 重新開始</div>
+                    </div>
+
+                    <!-- 第二畫面：選關（預設隱藏） -->
+                    <div id="levelSelectBox" style="display:none;">
+                        <div style="font-size:28px; font-weight:bold; color:#7ecfff; margin-bottom:16px;">選擇起始關卡</div>
+                        <div id="levelSelectHint" style="font-size:24px; color:#aaa; margin-bottom:20px;"></div>
+                        <div id="levelButtons" style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;"></div>
+                        <div style="font-size:20px; color:#888; margin-top:16px;">按對應數字鍵選擇（按 0 選擇 Level 10）</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="hint-next-round" style="
+                display: block;
+                position: absolute;
+                bottom: 16px;
+                left: 50%;
+                transform: translateX(-50%);
+                color: rgba(255, 255, 255, 0.7);
+                font-size: 16px;
+                font-weight: bold;
+                background: rgba(0, 0, 0, 0.4);
+                padding: 6px 16px;
+                border-radius: 8px;
+                pointer-events: none;
+                white-space: nowrap;
+                animation: blink 1.2s infinite;
+            ">按 R 繼續</div>
+
+        </div>
+    </div>
+
+    <!-- 右欄 -->
+    <div id="panel-right">
+        <h2>📖 遊戲規則</h2>
+
+        <div style="font-size:18px; line-height:1.8; color:#ddd;">
+
+            <p style="margin-bottom:10px;">
+                小機器人被困在高空死亡競技場中，請幫助它找到安全的立足點並存活下去！
+            </p>
+
+            <p style="color:#7ecfff; font-weight:bold; margin-bottom:4px;">🎯 基本目標</p>
+            <p style="margin-bottom:10px;">
+                觀察場地四面展示的目標顏色，在 5 秒倒數結束前移動到顏色相符的總數為 5 的安全地板。時間到後，不安全的地板將消失，踩空的機器人會墜入天空。
+            </p>
+
+            <p style="color:#7ecfff; font-weight:bold; margin-bottom:4px;">⬆ 升級</p>
+            <p style="margin-bottom:10px;">
+                每通過 3 局便提升一個 Level。Level 越高，地板花紋越複雜，判斷難度也隨之提升。
+            </p>
+
+            <p style="color:#7ecfff; font-weight:bold; margin-bottom:4px;">💠 吸收地板</p>
+            <p style="margin-bottom:10px;">
+                站在安全地板上按 <span style="background:#333;border:1px solid #666;border-radius:4px;padding:1px 6px;font-size:12px;">E</span> 可吸收該格，獲得額外分數。每局最多吸收 4 格，吸收後該格不再算作安全地板。
+            </p>
+
+            <p style="color:#7ecfff; font-weight:bold; margin-bottom:4px;">🔭 切換視角</p>
+            <p style="margin-bottom:10px;">
+                在各局開始前按 <span style="background:#333;border:1px solid #666;border-radius:4px;padding:1px 6px;font-size:12px;">Q</span> 可切換第一或第三人稱視角，由於第一人稱視角的遊戲難度較高，獲得分數也相對較高。
+            </p>
+
+            <p style="color:#ffb347; font-weight:bold; margin-bottom:4px;">⚠ Level 5+ 鏡球警告</p>
+            <p style="margin-bottom:10px;">
+                Level 5 起，場上會出現隨機彈跳的鏡球。碰到鏡球後即死。
+            </p>
+            <p style="margin-bottom:10px;">
+                按住 <span style="background:#333;border:1px solid #666;border-radius:4px;padding:1px 6px;font-size:12px;">Shift</span> 可張開護盾反彈鏡球，但護盾啟動期間機器人無法移動，請交替使用護盾與閃避來幫助機器人。
+            </p>
+
+        </div>
+    </div>
+
+    <script src="cuon-matrix.js"></script>
+    <script src="WebGL.js"></script>
+
+</body>
+</html>
